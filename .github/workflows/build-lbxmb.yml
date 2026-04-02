@@ -1,0 +1,118 @@
+name: Build LBXMB - All Platforms
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL'
+        required: true
+        default: 'https://lbxmb.fr'
+
+      name:
+        description: 'App name (lowercase)'
+        required: true
+        default: 'lbxmb'
+
+      title:
+        description: 'Titre application (fenêtre)'
+        required: false
+        default: 'LBXMB'
+
+      description:
+        description: 'Description de application'
+        required: false
+        default: 'Application desktop officielle pour lbxmb.fr'
+
+      author:
+        description: 'Auteur / Société'
+        required: false
+        default: 'LBXMB'
+
+      version:
+        description: 'Version'
+        required: false
+        default: '1.0.0'
+
+      icon:
+        description: 'URL de icône (PNG 512x512 ou plus)'
+        required: false
+        # Exemple : https://lbxmb.fr/logo.png
+
+      width:
+        description: 'Largeur fenêtre (px)'
+        required: false
+        default: '1200'
+
+      height:
+        description: 'Hauteur fenêtre (px)'
+        required: false
+        default: '780'
+
+      targets:
+        description: 'Formats à générer (séparés par virgule)'
+        required: false
+        default: 'exe,msi,dmg,appimage,deb,rpm'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-24.04]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js + pnpm
+        uses: ./.github/actions/setup-env
+        with:
+          mode: build
+
+      - name: Build Pake CLI
+        run: pnpm run cli:build
+
+      - name: Setup mold (Linux faster linking)
+        if: runner.os == 'Linux'
+        uses: rui314/setup-mold@v1
+
+      - name: Build Application
+        timeout-minutes: 35
+        shell: bash
+        run: |
+          ARGS=("${{ inputs.url }}" "--name" "${{ inputs.name }}")
+
+          [[ -n "${{ inputs.title }}" ]]       && ARGS+=("--title" "${{ inputs.title }}")
+          [[ -n "${{ inputs.icon }}" ]]        && ARGS+=("--icon" "${{ inputs.icon }}")
+          [[ -n "${{ inputs.width }}" ]]       && ARGS+=("--width" "${{ inputs.width }}")
+          [[ -n "${{ inputs.height }}" ]]      && ARGS+=("--height" "${{ inputs.height }}")
+          [[ -n "${{ inputs.description }}" ]] && ARGS+=("--description" "${{ inputs.description }}")
+          [[ -n "${{ inputs.author }}" ]]      && ARGS+=("--author" "${{ inputs.author }}")
+          [[ -n "${{ inputs.version }}" ]]     && ARGS+=("--version" "${{ inputs.version }}")
+
+          # Targets seulement sur Linux (le plus fiable)
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            ARGS+=("--targets" "${{ inputs.targets }}")
+          fi
+
+          echo "🚀 Commande : node dist/cli.js ${ARGS[*]}"
+          node dist/cli.js "${ARGS[@]}"
+
+      - name: Upload All Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: lbxmb-${{ matrix.os }}
+          path: |
+            *.exe
+            *.msi
+            *.dmg
+            *.AppImage
+            *.deb
+            *.rpm
+          retention-days: 7
+          if-no-files-found: ignore
