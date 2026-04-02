@@ -19,7 +19,7 @@ on:
         default: 'LBXMB'
 
       description:
-        description: 'Description de l\'application'
+        description: 'Description de l application'
         required: false
         default: 'Application desktop officielle pour lbxmb.fr'
 
@@ -29,7 +29,7 @@ on:
         default: 'LBXMB'
 
       icon:
-        description: 'URL de l\'icône PNG'
+        description: 'URL de l icône PNG'
         required: false
         default: 'https://lbxmb.fr/lbxmb.png'
 
