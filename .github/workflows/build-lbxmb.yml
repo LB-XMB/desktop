@@ -19,7 +19,7 @@ on:
         default: 'LBXMB'
 
       description:
-        description: 'Description de application'
+        description: 'Description de l\'application'
         required: false
         default: 'Application desktop officielle pour lbxmb.fr'
 
@@ -29,7 +29,7 @@ on:
         default: 'LBXMB'
 
       icon:
-        description: 'URL de icône PNG'
+        description: 'URL de l\'icône PNG'
         required: false
         default: 'https://lbxmb.fr/lbxmb.png'
 
@@ -57,10 +57,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup pnpm
+      - name: Setup pnpm (version 9 - stable for Pake)
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 9   # ← Changement important : on passe en v9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,7 +86,7 @@ jobs:
 
           ARGS+=("--targets" "${{ inputs.targets }}")
 
-          echo "🚀 Lancement du build avec icône : ${{ inputs.icon }}"
+          echo "🚀 Build Linux avec icône : ${{ inputs.icon }}"
           node dist/cli.js "${ARGS[@]}"
 
       - name: Upload Linux Artifacts
@@ -107,10 +107,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup pnpm
+      - name: Setup pnpm (version 9)
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -132,7 +132,7 @@ jobs:
           if ("${{ inputs.width }}" -ne "") { $args += "--width", "${{ inputs.width }}" }
           if ("${{ inputs.height }}" -ne "") { $args += "--height", "${{ inputs.height }}" }
 
-          Write-Host "🚀 Lancement du build Windows avec icône : ${{ inputs.icon }}"
+          Write-Host "🚀 Build Windows avec icône : ${{ inputs.icon }}"
           node dist/cli.js $args
 
       - name: Upload Windows Artifacts
@@ -152,10 +152,10 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup pnpm
+      - name: Setup pnpm (version 9)
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -177,7 +177,7 @@ jobs:
           [[ -n "${{ inputs.width }}" ]] && ARGS+=("--width" "${{ inputs.width }}")
           [[ -n "${{ inputs.height }}" ]] && ARGS+=("--height" "${{ inputs.height }}")
 
-          echo "🚀 Lancement du build macOS avec icône : ${{ inputs.icon }}"
+          echo "🚀 Build macOS avec icône : ${{ inputs.icon }}"
           node dist/cli.js "${ARGS[@]}"
 
       - name: Upload macOS Artifact
