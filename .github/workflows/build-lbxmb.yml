@@ -1,4 +1,4 @@
-name: Build LBXMB - All Platforms
+name: Build LBXMB Full - All Platforms
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
         default: 'lbxmb'
 
       title:
-        description: 'Titre application (fenêtre)'
+        description: 'Titre de la fenêtre'
         required: false
         default: 'LBXMB'
 
@@ -24,19 +24,14 @@ on:
         default: 'Application desktop officielle pour lbxmb.fr'
 
       author:
-        description: 'Auteur / Société'
+        description: 'Auteur'
         required: false
         default: 'LBXMB'
 
-      version:
-        description: 'Version'
-        required: false
-        default: '1.0.0'
-
       icon:
-        description: 'URL de icône (PNG 512x512 ou plus)'
+        description: 'URL de icône PNG'
         required: false
-        # Exemple : https://lbxmb.fr/logo.png
+        default: 'https://lbxmb.fr/lbxmb.png'
 
       width:
         description: 'Largeur fenêtre (px)'
@@ -49,70 +44,145 @@ on:
         default: '780'
 
       targets:
-        description: 'Formats à générer (séparés par virgule)'
+        description: 'Formats à générer'
         required: false
         default: 'exe,msi,dmg,appimage,deb,rpm'
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-24.04]
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup Node.js + pnpm
-        uses: ./.github/actions/setup-env
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          mode: build
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Build Pake CLI
         run: pnpm run cli:build
 
-      - name: Setup mold (Linux faster linking)
-        if: runner.os == 'Linux'
-        uses: rui314/setup-mold@v1
-
-      - name: Build Application
-        timeout-minutes: 35
-        shell: bash
+      - name: Build Application (Linux)
         run: |
           ARGS=("${{ inputs.url }}" "--name" "${{ inputs.name }}")
-
-          [[ -n "${{ inputs.title }}" ]]       && ARGS+=("--title" "${{ inputs.title }}")
-          [[ -n "${{ inputs.icon }}" ]]        && ARGS+=("--icon" "${{ inputs.icon }}")
-          [[ -n "${{ inputs.width }}" ]]       && ARGS+=("--width" "${{ inputs.width }}")
-          [[ -n "${{ inputs.height }}" ]]      && ARGS+=("--height" "${{ inputs.height }}")
+          [[ -n "${{ inputs.title }}" ]] && ARGS+=("--title" "${{ inputs.title }}")
+          [[ -n "${{ inputs.icon }}" ]] && ARGS+=("--icon" "${{ inputs.icon }}")
+          [[ -n "${{ inputs.width }}" ]] && ARGS+=("--width" "${{ inputs.width }}")
+          [[ -n "${{ inputs.height }}" ]] && ARGS+=("--height" "${{ inputs.height }}")
           [[ -n "${{ inputs.description }}" ]] && ARGS+=("--description" "${{ inputs.description }}")
-          [[ -n "${{ inputs.author }}" ]]      && ARGS+=("--author" "${{ inputs.author }}")
-          [[ -n "${{ inputs.version }}" ]]     && ARGS+=("--version" "${{ inputs.version }}")
+          [[ -n "${{ inputs.author }}" ]] && ARGS+=("--author" "${{ inputs.author }}")
 
-          # Targets seulement sur Linux (le plus fiable)
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            ARGS+=("--targets" "${{ inputs.targets }}")
-          fi
+          ARGS+=("--targets" "${{ inputs.targets }}")
 
-          echo "🚀 Commande : node dist/cli.js ${ARGS[*]}"
+          echo "🚀 Lancement du build avec icône : ${{ inputs.icon }}"
           node dist/cli.js "${ARGS[@]}"
 
-      - name: Upload All Artifacts
+      - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: lbxmb-${{ matrix.os }}
+          name: lbxmb-linux
           path: |
-            *.exe
-            *.msi
-            *.dmg
             *.AppImage
             *.deb
             *.rpm
           retention-days: 7
-          if-no-files-found: ignore
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Pake CLI
+        run: pnpm run cli:build
+
+      - name: Build Application (Windows)
+        run: |
+          $args = "${{ inputs.url }}", "--name", "${{ inputs.name }}"
+          if ("${{ inputs.icon }}" -ne "") { $args += "--icon", "${{ inputs.icon }}" }
+          if ("${{ inputs.title }}" -ne "") { $args += "--title", "${{ inputs.title }}" }
+          if ("${{ inputs.width }}" -ne "") { $args += "--width", "${{ inputs.width }}" }
+          if ("${{ inputs.height }}" -ne "") { $args += "--height", "${{ inputs.height }}" }
+
+          Write-Host "🚀 Lancement du build Windows avec icône : ${{ inputs.icon }}"
+          node dist/cli.js $args
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: lbxmb-windows
+          path: |
+            *.exe
+            *.msi
+          retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Pake CLI
+        run: pnpm run cli:build
+
+      - name: Build Application (macOS)
+        run: |
+          ARGS=("${{ inputs.url }}" "--name" "${{ inputs.name }}")
+          [[ -n "${{ inputs.icon }}" ]] && ARGS+=("--icon" "${{ inputs.icon }}")
+          [[ -n "${{ inputs.title }}" ]] && ARGS+=("--title" "${{ inputs.title }}")
+          [[ -n "${{ inputs.width }}" ]] && ARGS+=("--width" "${{ inputs.width }}")
+          [[ -n "${{ inputs.height }}" ]] && ARGS+=("--height" "${{ inputs.height }}")
+
+          echo "🚀 Lancement du build macOS avec icône : ${{ inputs.icon }}"
+          node dist/cli.js "${ARGS[@]}"
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: lbxmb-macos
+          path: "*.dmg"
+          retention-days: 7
